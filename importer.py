@@ -95,7 +95,7 @@ class SupabaseImporter:
                 continue
             
             try:
-                response = self.client.table('products').upsert(records, on_conflict='id').execute()
+                response = self.client.table('products').upsert(records, on_conflict='source,product_url').execute()
                 
                 if hasattr(response, 'data') and response.data:
                     imported += len(records)
