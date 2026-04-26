@@ -1,0 +1,45 @@
+name: Scrape Bound Products
+
+on:
+  schedule:
+    - cron: '0 15 * * 3,5'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [run]
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python main.py --no-cache
+
+      - name: Verify import
+        if: success()
+        run: |
+          echo "Scraping completed successfully!"
+          python -c "
+          from importer import SupabaseImporter
+          imp = SupabaseImporter()
+          count = imp.count_products()
+          print(f'Total products in database: {count}')
+          " || echo "Verification skipped"
+
+      - name: Report failure
+        if: failure()
+        run: echo "Scraping failed - check logs"
