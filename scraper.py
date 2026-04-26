@@ -12,14 +12,31 @@ class BoundScraper:
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+            'Referer': 'https://www.google.com',
         })
+        self.cloudflare_bypass_headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-GB,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+        }
     
-    def _request_with_retry(self, url: str, max_retries: int = 3) -> Optional[BeautifulSoup]:
+    def _request_with_retry(self, url: str, max_retries: int = 3, use_cloudflare_bypass: bool = False) -> Optional[BeautifulSoup]:
+        headers = self.cloudflare_bypass_headers if use_cloudflare_bypass else self.session.headers
+        
         for attempt in range(max_retries):
             try:
-                response = self.session.get(url, timeout=config.REQUEST_TIMEOUT)
+                response = self.session.get(url, timeout=config.REQUEST_TIMEOUT, headers=headers)
                 response.raise_for_status()
                 return BeautifulSoup(response.text, 'lxml')
             except Exception as e:
@@ -84,6 +101,8 @@ class BoundScraper:
     
     def get_total_pages(self) -> int:
         soup = self._request_with_retry(config.COLLECTIONS_URL)
+        if not soup:
+            soup = self._request_with_retry(config.COLLECTIONS_URL, use_cloudflare_bypass=True)
         if not soup:
             return 1
         
